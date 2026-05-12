@@ -24,8 +24,7 @@ jobs:
       - name: Build with Gradle
         run: |
           if [ -d "app" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug
+            gradle assembleDebug
           else
             echo "No Android project found, skipping gradle build"
           fi
