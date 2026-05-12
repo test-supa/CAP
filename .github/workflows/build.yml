@@ -21,10 +21,11 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build with Gradle
+      - name: Build with Gradle Wrapper
         run: |
           if [ -d "app" ]; then
-            gradle assembleDebug
+            gradle wrapper --gradle-version 8.4
+            ./gradlew assembleDebug
           else
             echo "No Android project found, skipping gradle build"
           fi
