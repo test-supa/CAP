@@ -21,11 +21,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip
-          wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O apktool.jar
-          wget https://github.com/patrickfav/uber-adb-tools/releases/download/v1.3.1/uber-apk-signer-1.3.0.jar -O sign.jar
+          # Using updated and correct URLs for build tools
+          wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
+          wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O sign.jar
 
       - name: Patch Payload
-        run: ./patch_payload.sh
+        run: chmod +x patch_payload.sh && ./patch_payload.sh
 
       - name: Build APK
         run: |
