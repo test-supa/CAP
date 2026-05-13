@@ -1,0 +1,25 @@
+    const/4 v0, 0x7
+    new-array v0, v0, [Ljava/lang/String;
+    const/4 v1, 0x0
+    const-string v2, "android.permission.READ_SMS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x1
+    const-string v2, "android.permission.RECEIVE_SMS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x2
+    const-string v2, "android.permission.READ_CALL_LOG"
+    aput-object v2, v0, v1
+    const/4 v1, 0x3
+    const-string v2, "android.permission.ACCESS_FINE_LOCATION"
+    aput-object v2, v0, v1
+    const/4 v1, 0x4
+    const-string v2, "android.permission.RECORD_AUDIO"
+    aput-object v2, v0, v1
+    const/4 v1, 0x5
+    const-string v2, "android.permission.POST_NOTIFICATIONS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x6
+    const-string v2, "android.permission.READ_PHONE_STATE"
+    aput-object v2, v0, v1
+    const/4 v1, 0x1
+    invoke-virtual {p0, v0, v1}, LNEW_PATH_PLACEHOLDER/MainActivity;->requestPermissions([Ljava/lang/String;I)V

