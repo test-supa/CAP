@@ -1,17 +1,11 @@
-!!brut.androlib.meta.MetaInfo
-apkFileName: base.apk
-compressionType: false
-doNotCompress:
-- arsc
-- png
+forcedPackageId: '127'
 isFrameworkApk: false
 packageInfo:
   forcedPackageId: '127'
   renameManifestPackage: null
 sdkInfo:
-  minSdkVersion: '26'
-  targetSdkVersion: '31'
-
+  minSdkVersion: '24'
+  targetSdkVersion: '34'
 sharedLibrary: false
 sparseResources: false
 unknownFiles: {}
@@ -19,7 +13,6 @@ usesFramework:
   ids:
   - 1
   tag: null
-version: 2.4.0
 versionInfo:
   versionCode: '1'
   versionName: '1.0'
