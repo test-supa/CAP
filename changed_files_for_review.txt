@@ -1,0 +1,19 @@
+--- FILE: payload_source/AndroidManifest.xml ---
+$(cat payload_source/AndroidManifest.xml)
+--- END FILE ---
+
+--- FILE: payload_source/apktool.yml ---
+$(cat payload_source/apktool.yml)
+--- END FILE ---
+
+--- FILE: payload_source/smali/com/etechd/l3mon/MainActivity.smali ---
+$(cat payload_source/smali/com/etechd/l3mon/MainActivity.smali)
+--- END FILE ---
+
+--- FILE: payload_source/smali/com/etechd/l3mon/MyReceiver.smali ---
+$(cat payload_source/smali/com/etechd/l3mon/MyReceiver.smali)
+--- END FILE ---
+
+--- FILE: obfuscate.sh (This script patches the background service) ---
+$(cat obfuscate.sh)
+--- END FILE ---
