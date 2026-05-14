@@ -61,6 +61,22 @@
 
     if-eqz v3, :cond_0
 
+    # Redirect removed
+    goto :goto_0
+
+    .line 23
+    :cond_0
+    aget-object v2, v1, v2
+
+    const-string v3, "5055"
+
+    invoke-virtual {v2, v3}, Ljava/lang/String;->equalsIgnoreCase(Ljava/lang/String;)Z
+
+    move-result v2
+
+    if-eqz v2, :cond_1
+
+    # Redirect removed
     .line 29
     .end local v0    # "uri":Ljava/lang/String;
     .end local v1    # "sep":[Ljava/lang/String;
